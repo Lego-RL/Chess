@@ -39,10 +39,111 @@ class Piece(ABC):
         return True
 
 
-    # @abstractmethod
-    # def moves(self):
-    #     '''Returns possible moves the piece can take.'''
-    #     pass
+    def generate_all_horizontal_moves(self, row, column):
+        '''
+        Returns a tuple containing two tuples, one for each horizontal
+        direction. The first represents all potential moves left of the piece,
+        and the second represents all potential moves right of the piece.
+        '''
+
+        potential_left_moves = []
+        potential_right_moves = []
+        
+        for i in range(0, column):
+            potential_left_moves.append((row, i))
+
+
+        for i in range(column + 1, 8): #0-7 is the range of the board, so stop at 8 exclusive
+            potential_right_moves.append((row, i))
+
+
+        return (tuple(potential_left_moves), tuple(potential_right_moves))
+
+
+
+    def generate_all_vertical_moves(self, row, column):
+        '''
+        Returns a tuple containing two tuples, one for each horizontal
+        direction. The first represents all potential moves above the piece,
+        and the second represents all potential moves below the piece.
+        '''
+
+        potential_above_moves = []
+        potential_below_moves = []
+
+        for i in range(0, row):
+            potential_above_moves.append((i, column))
+
+        
+        for i in range(row + 1, 8): #0-7 is the range of the board, so stop at 8 exclusive
+            potential_below_moves.append((i, column))
+
+
+        return (tuple(potential_above_moves), tuple(potential_below_moves))
+
+
+
+    def generate_all_diagonal_moves(self, row, column):
+        '''
+        Returns a tuple containing four tuples, one for each diagonal direction.
+        The first represents the top left diagonal, the second represents the top right,
+        the third represents the bottom left diagonal, and the fourth represents the bottom
+        right diagonal.
+        '''
+
+        original_row = row
+        original_column = column
+        
+        potential_top_left_moves = []
+        potential_top_right_moves = []
+        potential_bottom_left_moves = []
+        potential_bottom_right_moves = []
+
+
+
+        while row > 0 and column > 0:
+            row -= 1
+            column -= 1
+
+            potential_top_left_moves.append((row, column))
+
+
+        #reset vars
+        row = original_row
+        column = original_column
+
+        while row > 0 and column < 7:
+            row -= 1
+            column += 1
+
+            potential_top_right_moves.append((row, column))
+
+
+        #reset vars
+        row = original_row
+        column = original_column
+
+        while row < 7 and column > 0:
+            row += 1
+            column -= 1
+
+            potential_bottom_left_moves.append((row, column))
+
+        
+        #reset vars
+        row = original_row
+        column = original_column
+
+        while row < 7 and column < 7:
+            row += 1
+            column += 1
+
+            potential_bottom_left_moves.append((row, column))
+
+
+        return (tuple(potential_top_left_moves), tuple(potential_top_right_moves),
+                tuple(potential_bottom_left_moves), tuple(potential_bottom_right_moves)) 
+
 
 
 
@@ -136,7 +237,6 @@ class Pawn(Piece):
             forward = possible_moves[0]
             forward_two = possible_moves[1]
 
-            # print(f'forward 0: {forward[0]}, forward 1: {forward[1]}')
             if board[forward[0]][forward[1]] is not None:
                 possible_moves.clear() #pawn also can't move 2 spaces forward because another piece is in the way
 
