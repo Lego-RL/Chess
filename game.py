@@ -6,6 +6,9 @@ class Game():
     def __init__(self):
 
         self.board = Board()
+
+        self.board.game_board[5][1] = Rook((5, 1))
+
         self.turn = 'White'
 
         self.assign_moves()
@@ -30,19 +33,10 @@ class Game():
             print() #get a newline at the end of each row
 
 
-    def validate_move(self, x, y):
-        '''
-        See if a move is a valid spot on the board, and if the space is empty.
-        '''
 
-        if x < 0 or x > 7:
-            return False
-        
-        if y < 0 or y > 7:
-            return False
-
-        #TODO: check if piece is already in spot
-        #TODO: check if there is a piece in the way blocking this move
+    #TODO: check if piece is already in spot
+    #TODO: check if there is a piece in the way blocking this move
+    #done for pawns
 
         
 
@@ -57,9 +51,9 @@ class Game():
             if isinstance(piece, Pawn):
                 # piece.print_position()
 
-                if True:
-                    pass
-                    #TODO: check for valid pawn moves making use of validate_move()
+                moves = piece.moves(self.board.game_board)
+
+                print(f'\n\n{piece.position_str()}\n moves: {moves[0]}\n attacks: {moves[1]}')
 
             #TODO: check for valid moves for all other pieces
 

@@ -2,6 +2,8 @@ from pieces import Pawn, Rook, Knight, Bishop, Queen, King
 
 class Board():
 
+    from pieces import Pawn, Rook, Knight, Bishop, Queen, King
+
     def __init__(self):
 
         self.white_pieces = []
