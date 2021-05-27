@@ -1,7 +1,5 @@
 
 from abc import ABC, abstractmethod
-# from board import Board
-# import board
 
 class Piece(ABC):
 
@@ -44,6 +42,10 @@ class Piece(ABC):
         Returns a tuple containing two tuples, one for each horizontal
         direction. The first represents all potential moves left of the piece,
         and the second represents all potential moves right of the piece.
+
+        The list of possible moves left the piece is reversed, to make
+        the points begin next to the piece instead of at the top of the board.
+        The 'right' moves already naturally start right below the piece.
         '''
 
         potential_left_moves = []
@@ -57,15 +59,21 @@ class Piece(ABC):
             potential_right_moves.append((row, i))
 
 
+        potential_left_moves.reverse()
+
         return (tuple(potential_left_moves), tuple(potential_right_moves))
 
 
 
     def generate_all_vertical_moves(self, row, column):
         '''
-        Returns a tuple containing two tuples, one for each horizontal
+        Returns a tuple containing two tuples, one for each vertical
         direction. The first represents all potential moves above the piece,
         and the second represents all potential moves below the piece.
+
+        The list of possible moves "above" the piece is reversed, to make
+        the points begin next to the piece instead of at the top of the board.
+        The below moves already naturally start right below the piece.
         '''
 
         potential_above_moves = []
@@ -78,6 +86,8 @@ class Piece(ABC):
         for i in range(row + 1, 8): #0-7 is the range of the board, so stop at 8 exclusive
             potential_below_moves.append((i, column))
 
+
+        potential_above_moves.reverse()
 
         return (tuple(potential_above_moves), tuple(potential_below_moves))
 
@@ -138,11 +148,35 @@ class Piece(ABC):
             row += 1
             column += 1
 
-            potential_bottom_left_moves.append((row, column))
+            potential_bottom_right_moves.append((row, column))
 
 
         return (tuple(potential_top_left_moves), tuple(potential_top_right_moves),
                 tuple(potential_bottom_left_moves), tuple(potential_bottom_right_moves)) 
+
+
+    def parse_all_possible_moves(self, all_moves, board):
+        '''
+        Takes all_moves and decides which moves are valid moves
+        and possible attacks. I believe this only works on normalized lines, 
+        like horizontal, vertical and diagonal lines. (Rook, Bishop, Queen)
+        '''
+
+        possible_moves, possible_attacks = [], []
+
+        for potential_moves in all_moves:
+            for move in potential_moves:
+                if board[move[0]][move[1]] is None:
+                    possible_moves.append(move)
+
+                elif board[move[0]][move[1]].color != self.color:
+                    possible_attacks.append(move)
+                    break #can't move or attack behind a piece
+
+                else:
+                    break #can't move or attack behind your own piece
+
+        return (tuple(possible_moves), tuple(possible_attacks))
 
 
 
@@ -214,14 +248,14 @@ class Pawn(Piece):
     def moves(self, board):
         '''
         Return tuple made of two lists. The first list represents
-        possible coordinates the piece can move to erowcluding attacking
+        possible coordinates the piece can move to excluding attacking
         moves, and the second list represents solely attacking moves.
 
         Starts with lists of all possible moves & all possible attacks, and 
         removes all invalid moves.
         '''
         
-        #all possible moves & all possible attacks, 
+        
         possible_moves, possible_attacks = self.generate_all_moves_attacks()
 
         #pawn only has potential to move forward 1 square
@@ -244,14 +278,11 @@ class Pawn(Piece):
                 del possible_moves[1] #can move forward 1 space, but forward two is occupied by another piece
 
 
-        possible_attacks[:] = [row for row in possible_attacks if board[row[0]][row[1]] is not None]
-        possible_attacks[:] = [row for row in possible_attacks if board[row[0]][row[1]].color != self.color]
+        possible_attacks[:] = [move for move in possible_attacks if board[move[0]][move[1]] is not None]
+        possible_attacks[:] = [move for move in possible_attacks if board[move[0]][move[1]].color != self.color]
 
         return (possible_moves, possible_attacks)
                 
-
-
-
 
 
 class Rook(Piece):
@@ -260,9 +291,83 @@ class Rook(Piece):
 
 
 
+    def moves(self, board):
+        '''
+        Return tuple made of two lists. The first list represents
+        possible coordinates the piece can move to excluding attacking
+        moves, and the second list represents solely attacking moves.
+
+        Starts with lists of all possible moves & all possible attacks, and 
+        removes all invalid moves.
+        '''
+
+        horizontal_moves = list(self.generate_all_horizontal_moves(self.row, self.column))
+        vertical_moves = list(self.generate_all_vertical_moves(self.row, self.column))
+
+        all_move_tuples = tuple(horizontal_moves + vertical_moves)
+
+        return self.parse_all_possible_moves(all_move_tuples, board)
+
+
+
 class Knight(Piece):
 
     title = 'Knight'
+
+
+    def generate_all_moves_attacks(self):
+        '''
+        Finds all possible moves as if the board is empty,
+        and finds all possible attacks as if each enemy piece 
+        is alone on the board (as in, a piece behind another in view
+        of an enemy queen will be accepted).
+        '''
+
+        #a knight's possible moves are the same as its possible attacks
+        #starting with up two, right one tile move & moving clockwise
+        possible_moves_attacks = [(self.row - 2, self.column + 1), (self.row - 1, self.column + 2), 
+                                (self.row + 1, self.column + 2), (self.row + 2, self.column + 1), 
+                                (self.row + 2, self.column - 1), (self.row + 1, self.column - 2),
+                                (self.row - 1, self.column - 2), (self.row - 2, self.column - 1)]
+
+        #[:] makes list comprehension delete bad elements in place instead of generating entire new list
+        # make sure the moves aren't off the board with validate_move()
+        # print(f'before list comp: {possible_moves_attacks}')
+        possible_moves_attacks[:] = [move for move in possible_moves_attacks if self.validate_move(move[0], move[1])]
+        # print(f'after list comp: {possible_moves_attacks}')
+
+
+
+        return (possible_moves_attacks, tuple()) #for format to match, both moves and attacks (which are the same) are passed
+
+
+    def moves(self, board):
+        '''
+        Return tuple made of two lists. The first list represents
+        possible coordinates the piece can move to excluding attacking
+        moves, and the second list represents solely attacking moves.
+
+        Starts with lists of all possible moves & all possible attacks, and 
+        removes all invalid moves.
+        '''
+        
+        #moves and attacks are the same so possible attacks can be discarded in the case of the knight
+        all_move_tuples, _ = self.generate_all_moves_attacks()
+
+        possible_moves, possible_attacks = [], []
+
+        for move in all_move_tuples:
+            if board[move[0]][move[1]] is None:
+                    possible_moves.append(move)
+
+            elif board[move[0]][move[1]].color != self.color:
+                possible_attacks.append(move)
+                continue #can't move or attack behind a piece
+
+            else:
+                continue #can't move or attack behind your own piece
+
+        return (tuple(possible_moves), tuple(possible_attacks))
 
 
 
@@ -271,10 +376,50 @@ class Bishop(Piece):
     title = 'Bishop'
 
 
+    def moves(self, board):
+        '''
+        Return tuple made of two lists. The first list represents
+        possible coordinates the piece can move to excluding attacking
+        moves, and the second list represents solely attacking moves.
+
+        Starts with lists of all possible moves & all possible attacks, and 
+        removes all invalid moves.
+        '''
+
+        # potential_top_left_moves, potential_top_right_moves, \
+        # potential_bottom_left_moves, potential_bottom_right_moves = self.generate_all_diagonal_moves(self.row, self.column)
+
+        # all_move_tuples = (potential_top_left_moves, potential_top_right_moves, potential_bottom_left_moves, potential_bottom_right_moves)
+
+        all_move_tuples = tuple(self.generate_all_diagonal_moves(self.row, self.column))
+
+        return self.parse_all_possible_moves(all_move_tuples, board)
+
+
 
 class Queen(Piece):
 
     title = 'Queen'
+
+
+    def moves(self, board):
+        '''
+        Return tuple made of two lists. The first list represents
+        possible coordinates the piece can move to excluding attacking
+        moves, and the second list represents solely attacking moves.
+
+        Starts with lists of all possible moves & all possible attacks, and 
+        removes all invalid moves.
+        '''
+
+        horizontal_moves = list(self.generate_all_horizontal_moves(self.row, self.column))
+        vertical_moves = list(self.generate_all_vertical_moves(self.row, self.column))
+
+        diagonal_moves = list(self.generate_all_diagonal_moves(self.row, self.column))
+
+        all_move_tuples = tuple(horizontal_moves + vertical_moves + diagonal_moves)
+
+        return self.parse_all_possible_moves(all_move_tuples, board)
 
 
 
@@ -282,3 +427,52 @@ class King(Piece):
 
     title = 'King'
 
+    def generate_all_moves_attacks(self):
+        '''
+        Finds all possible moves as if the board is empty,
+        and finds all possible attacks as if each enemy piece 
+        is alone on the board (as in, a piece behind another in view
+        of an enemy queen will be accepted).
+        '''
+
+        #starts with move directly above king and goes clockwise
+        #everywhere the king can move, he can attack, so moves & attacks are the same
+        possible_moves_attacks = [(self.row - 1, self.column), (self.row - 1, self.column + 1),
+                                (self.row, self.column + 1), (self.row + 1, self.column + 1),
+                                (self.row + 1, self.column), (self.row + 1, self.column - 1),
+                                (self.row, self.column - 1), (self.row - 1, self.column - 1)]
+
+
+        possible_moves_attacks[:] = [move for move in possible_moves_attacks if self.validate_move(move[0], move[1])]
+
+        return (possible_moves_attacks, tuple()) #for format to match, both moves and attacks (which are the same) are passed
+
+
+
+    def moves(self, board):
+        '''
+        Return tuple made of two lists. The first list represents
+        possible coordinates the piece can move to excluding attacking
+        moves, and the second list represents solely attacking moves.
+
+        Starts with lists of all possible moves & all possible attacks, and 
+        removes all invalid moves.
+        '''
+        
+        #moves and attacks are the same so possible attacks can be discarded in the case of the knight
+        all_move_tuples, _ = self.generate_all_moves_attacks()
+
+        possible_moves, possible_attacks = [], []
+
+        for move in all_move_tuples:
+            if board[move[0]][move[1]] is None:
+                    possible_moves.append(move)
+
+            elif board[move[0]][move[1]].color != self.color:
+                possible_attacks.append(move)
+                continue #can't move or attack behind a piece
+
+            else:
+                continue #can't move or attack behind your own piece
+
+        return (tuple(possible_moves), tuple(possible_attacks))
